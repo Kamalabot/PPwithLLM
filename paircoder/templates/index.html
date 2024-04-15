@@ -6,38 +6,51 @@
         <div>
             <h3>Welcome. Lets get coding </h3>
         </div>
-        <div class="d-flex flexwrap">
-            <div class="w-50 mx-1">
-                <form action="{% url 'intent' %}" method="post">
-                    {% csrf_token %}
-                    <div>
-                        <h6>Begin Clarifying Intent: </h6>
-                    </div>
-                    <div>
-                        <label for="challenge">Your Challenge: </label>
-                        <input type="text" name="challenge" id="challenge">
-                    </div>
-                    <div>
-                        <label for="lang">Code Language:</label>
-                        <input type="text" name="lang" id="lang"> 
-                    </div>
-                    <div>
-                        <label for="apptype">Type of App:</label>
-                        <input type="text" name="apptype">
-                    </div>
-                    <div>
-                        <label for="exp">Coding Experience</label>
-                        <input type="text" name="exp">
-                    </div>
-                    <div>
-                        <button type="submit" class="btn btn-info mx-3">Check Intent</button>
-                    </div>
+        <div>
+            <div class="d-flex flex-row">
+                <div class="w-40 mx-1 p-2">
+                    <form action="{% url 'intent' %}" method="post">
+                        {% csrf_token %}
+                        <div>
+                            <h6>Begin Clarifying Intent: </h6>
+                        </div>
+                        <div style="height: 100px;">
+                            <label for="challenge">Your Challenge </label>
+                            <input type="text" name="challenge" id="challenge" class="float-right h-50">
+                        </div>
+                        <div>
+                            <label for="lang">Code Lang </label>
+                            <input type="text" name="lang" id="lang" class="float-right"> 
+                        </div>
+                        <div>
+                            <label for="apptype">App Type </label>
+                            <input type="text" name="apptype" class="float-right">
+                        </div>
+                        <div>
+                            <label for="exp">Coding Exp </label>
+                            <input type="text" name="exp" class="float-right">
+                        </div>
+                        <div>
+                            <button type="submit" class="my-3 btn btn-info mx-3">Check Intent</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="w-50 mx-1">
+                    <h6>Prompt for Intent: </h6>
+                    <textarea name="int_prompt" id="" cols="100" rows="10">{{ input_prompt }}</textarea>
+                </div>
+            </div>
+            <div class="w-100 p-4">
+                <h3>Intent Verification:</h3>
+            </div>
+            <div class="w-100">
+                <form action="" method="get">
+                    <label for="Intent 1">Your Intent: </label>
+                    <textarea name="intent1" id="intent1" cols="100" rows="10">
+                        {{ intent_pred }}
+                    </textarea>
                 </form>
-            </div>
-            <div class="w-60 mx-1">
-                <h6>Prompt for Intent: </h6>
-                <textarea name="int_prompt" id="" cols="100" rows="10">{{ int_prompt }}</textarea>
-            </div>
+            </div> 
         </div>
     </div>
 {% endblock %}

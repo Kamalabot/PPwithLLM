@@ -1,4 +1,8 @@
-language: {{ lang }}
-challenge: {{ challenge }}
-apptype: {{ apptype }}
-coding experienc: {{ exp}}
+I am looking for solving a challenge using programming, in the {{ lang }} language.
+The challenge is : {{ challenge }}
+The solution needs to be made into a apptype of {{ apptype }}
+I am having a coding experience {{ exp }} level, and I need your support. 
+
+Kindly tell me if you have understood my challenge, and provide the intent below
+Your Intent is: {{ intent }} 
+
