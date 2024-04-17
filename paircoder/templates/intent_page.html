@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}PPwLLM{% endblock %}
+{% block content %}
+    <div class="container">
+        <div>
+            <h3>Welcome. Lets get coding </h3>
+        </div>
+        <div>
+            <div class="d-flex flex-row">
+                <div class="w-40 mx-1 p-2">
+                    <form action="{% url 'intent' %}" method="post">
+                        {% csrf_token %}
+                        <div>
+                            <h6>Begin Clarifying Intent: </h6>
+                        </div>
+                        <div style="height: 100px;">
+                            <label for="challenge">Your Challenge </label>
+                            <input type="text" name="challenge" id="challenge" class="float-right h-50">
+                        </div>
+                        <div>
+                            <label for="language">Code Lang </label>
+                            <select name="language" id="language" class="form-select mx-3">
+                                <option value="python">Python</option>
+                                <option value="javascript">JavaScript</option>
+                                <option value="go">Go</option>
+                                <option value="rust">Rust</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="apptype">App Type </label>
+                            <select name="apptype" id="apptype" class="form-select mx-3">
+                                <option value="script">Script</option>
+                                <option value="webapp">WebApp</option>
+                                <option value="gui">GUI</option>
+                                <option value="commandline">CommandLine</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="experience">Coding Exp </label>
+                            <select name="experience" id="experience" class="form-select mx-3">
+                                <option value="non-coder">Non-Coder</option>
+                                <option value="amateur">Amateur</option>
+                                <option value="junior">Junior</option>
+                                <option value="midlevel">MidLevel</option>
+                                <option value="hacker">Hacker</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" class="my-3 btn btn-info mx-3">Check Intent</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="w-50 mx-1">
+                    <h6>Prompt for Intent: </h6>
+                    <textarea name="int_prompt" id="" cols="100" rows="10">{{ input_prompt }}</textarea>
+                </div>
+            </div>
+            <div class="d-flex flex-row">
+                <div class="w-50">
+                    <div class="p-4">
+                        <h3>Intent Verification:</h3>
+                    </div>
+                    <div class="p-4">
+                        <label for="Intent 1" class="align-top">Predicted Intent: </label>
+                        <textarea name="intent1" id="intent1" cols="40" rows="3">
+                        {{ intent_pred.response }}
+                        </textarea>
+                    </div> 
+                </div>
+                <div class="w-50">
+                    <div class="p-4">
+                        <h3>Intent Feedback:</h3>
+                    </div>
+                    <div class="p-4">
+                        <form action="" method="get">
+                            <label for="fb1" class="align-top">Intent Feedback: </label>
+                            <textarea name="fb1" id="fb1" cols="40" rows="3">
+                                {{ user_feedback }}
+                            </textarea>
+                        </form>
+                    </div> 
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

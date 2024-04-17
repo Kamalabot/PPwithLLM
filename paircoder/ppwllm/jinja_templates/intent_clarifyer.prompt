@@ -1,8 +1,12 @@
-I am looking for solving a challenge using programming, in the {{ lang }} language.
+I am looking for solving a challenge using programming, in the {{ language }} language.
 The challenge is : {{ challenge }}
 The solution needs to be made into a apptype of {{ apptype }}
-I am having a coding experience {{ exp }} level, and I need your support. 
+I am having a coding experience {{ experience }} level, and I need your support. 
 
-Kindly tell me if you have understood my challenge, and provide the intent below
-Your Intent is: {{ intent }} 
+Kindly tell me if you have understood my challenge, and provide the intent below in 
+single line. Don't provide the steps required to achieve the intent, or any kind of 
+explanation.
+If you have question, you can ask after you state the intent. Start with "question:" token.
+If you have no question then reply as no question.
+LLM Reply:{{ intent }}
 

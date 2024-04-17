@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Challenges{% endblock %}
+{% block content %}
+    <div class="container">
+        <div>
+            <h3>Your Challenges </h3>
+        </div>
+           <div class="d-flex flex-wrap">
+                {% for chlng in challenges %}
+                <div class="w-50">
+                    <div class="p-1">
+                        <h3>Challenge Details:</h3>
+                    </div>
+                    <div class="p-1">
+                        <p><span>Description:</span>{{ chlng.challenge }}</p>
+                        <p><span>Language:</span>{{ chlng.language }}</p>
+                        <p><span>AppType:</span>{{ chlng.apptype }}</p>
+                        <p><span>Experience:</span>{{ chlng.experience }}</p>
+                        <a href="{% url 'load_chlng' chlng.id %}" class="btn btn-success">Load Challenge</a>
+                    </div> 
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

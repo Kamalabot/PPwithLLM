@@ -1,4 +1,10 @@
-from django.shortcuts import render
+from django.shortcuts import (
+    render,
+    get_object_or_404,
+    get_list_or_404,
+    HttpResponse
+    )
+from django.views.decorators.csrf import csrf_exempt
 from jinja2 import (
     FileSystemLoader,
     select_autoescape,
@@ -9,6 +15,8 @@ import logging
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
+from .models import Objective, Promptintent
+from .forms import ObjectiveForm
 
 
 load_dotenv("D:\\gitFolders\\python_de_learners_data\\.env")
@@ -26,7 +34,7 @@ env = Environment(
 )
 
 
-def llm_call_openai(user_message:str):
+def llm_call_openai(user_message: str):
     system_prompt = """You are an expert programmer, who is writing 
     code in all the programming languages available today, and solve 
     the challenge given. You reason step by step about the problem 
@@ -45,30 +53,87 @@ def llm_call_openai(user_message:str):
         )
         assistant_message = response.choices[0].message.content
         return {"response": assistant_message,
-                'token_used': response.usage.totat_tokens}
+                'token_used': response.usage.total_tokens}
     except Exception as e:
         logging.info(e)
         return {"error": "Error occurred while processing request."}
 
 
-def index(request):
-    return render(request, 'index.html', {"test": "delivered!!!"})
+def challenge_index(request):
+    chlng_objs = Objective.objects.all().order_by('challenge')
+    obj_data = []
+    for chlng in chlng_objs:
+        obj_data.append({
+            "id": chlng.pk,
+            "challenge": chlng.challenge,
+            "language": chlng.language,
+            "apptype": chlng.apptype,
+            "experience": chlng.experience
+        })
+    logging.info(obj_data)
+    return render(request, 'chlnge_index.html', {"challenges": obj_data})
+
+
+def new_challenge(request):
+    return render(request, 'intent_page.html', {"test":"test"}) 
+
+def load_challenge(request, chlng_id):
+    chlng_obj = get_object_or_404(Objective, pk=chlng_id)
+    int_objs = Promptintent.objects.all().filter(objective=chlng_obj)
+    all_ints = Promptintent.objects.all()
+    logging.info(all_ints[0].objective)
+    int_data = []
+    for intent in int_objs:
+        int_data.append(
+            {
+                "user_intent": intent.user_intent,
+                "user_question": intent.user_question,
+                "user_feedback": intent.user_feedback,
+                "user_satisfied": intent.user_satisfied,
+                "llm_question": intent.llm_question,
+             }
+        )
+    context = {"challenge": chlng_obj,
+               "intents": int_data}
+    return render(request, 'challenge_page.html', context)
 
 
 def intent(request):
     prompt = env.get_template(intent_clarifier)
     if request.POST:
         first_intent = request.POST.dict()
+        logging.info(first_intent)
         input_prompt = prompt.render(**first_intent)
+        objective_obj = get_object_or_404(Objective,
+                                          challenge=first_intent['challenge'])
+        if not objective_obj:
+            objective_obj = Objective(challenge=first_intent['challenge'],
+                                      language=first_intent['language'],
+                                      apptype=first_intent['apptype'],
+                                      experience=first_intent['experience'])
+
+            objective_obj.save()
+
         llm_pred = llm_call_openai(user_message=input_prompt)
         first_intent['intent'] = llm_pred['response']
-        output_prompt = prompt.render(**first_intent).strip()
-        context = {"input_prompt": input_prompt,
-                   "intent_pred": output_prompt,
-                   "token_used": llm_pred['token_used']
-                   }
-    return render(request, 'index.html', context)
+        user_feedback = 'Requesting Feedback'
+        logging.info(llm_pred['response'])
+ 
+        promptint = Promptintent(objective=objective_obj,
+                                 user_intent=llm_pred["response"],
+                                 user_question=first_intent['challenge'],
+                                 user_feedback=user_feedback,
+                                 llm_question='No Question')
+        promptint.save()
+ 
+        context = {
+            "input_prompt": input_prompt,
+            "intent_pred": llm_pred,
+            "user_feedback": user_feedback
+        }
+    return render(request, 'intent_page.html', context)
 
 
-def pseudocode(request):
-    pass
+def viewtest(request):
+    objt_form = ObjectiveForm()
+    return render(request, 'index_test.html', {'form': objt_form})

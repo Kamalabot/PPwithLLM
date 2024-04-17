@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}PPwLLM{% endblock %}
+{% block content %}
+    <div class="container">
+        <div>
+            <h3>Welcome. Lets get coding </h3>
+        </div>
+        <div>
+            <div class="d-flex">
+                <div class="w-100">
+                    <strong>Challenge: </strong>
+                    <p>{{challenge.challenge}}</p>
+                </div>
+                <div class="w-50">
+                    <p><strong>Language: </strong>{{challenge.language}}</p>
+                    <p><strong>Apptype: </strong>{{challenge.apptype}}</p>
+                    <p><strong>Experience: </strong>{{challenge.experience}}</p>
+                </div>
+            </div>
+            <div class="d-flex flex-row">
+                {% for int in intents %}
+                <div class="w-50">
+                    {% if forloop.counter == intents|length %}
+                    <div class="p-2">
+                        <form action="" method="get">
+                            <label for="usrint">User Intent:</label>
+                            <input type="text" placeholder="{{int.user_intent}}">
+                            <label for="usrque">User Question:</label>
+                            <input type="text" placeholder="{{int.user_question}}">
+                            <label for="usrsat">User Satified:</label>
+                            <input type="checkbox" checked="{{int.user_satisified}}">
+                            <label for="fb1" class="align-top">Intent Feedback: {{forloop.counter}}</label>
+                            <textarea name="fb1" id="fb1" cols="40" rows="3">
+                                {{ int.user_feedback }}
+                            </textarea>
+                        </form>
+                    </div> 
+                    {% else %}
+                    <div class="p-2">
+                        <p>Intent Feedback: {{forloop.counter}}</p>
+                        <p>User Intent: {{int.user_intent}}</p>
+                        <p>User Question: {{int.user_question}}</p>
+                        <label for="usrsat">User Satified:</label>
+                        <input type="checkbox" checked="{{int.user_satisified}}" readonly>
+                        <p>User Feedback: {{ int.user_feedback }}</p>
+                    </div> 
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}PPwLLM{% endblock %}
+{% block content %}
+    <div class="container">
+        <div>
+            <h3>Welcome. Lets get coding </h3>
+        </div>
+        <div>
+            <div class="d-flex flex-row">
+                <div class="w-40 mx-1 p-2">
+                    <form action="{% url 'intent' %}" method="post">
+                        {% csrf_token %}
+                        <div>
+                            <h6>Begin Clarifying Intent: </h6>
+                        {% for field in form.fields.keys %}
+                        <div>
+                            <label for="{{field}}">{{ field }}</label>
+                            <input type="text" name="{{field}}" id="{{field}}" class="float-right"> 
+                        </div>
+                        {% endfor %}    
+                        <button type="submit" class="my-3 btn btn-info mx-3">Check Intent</button>
+                        </div>
+                    </form>
+                </div>
+           </div>
+       </div>
+    </div>
+{% endblock %}

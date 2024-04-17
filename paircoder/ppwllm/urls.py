@@ -1,13 +1,15 @@
 from django.urls import path
 from .views import (
-    index,
-    pseudocode,
-    intent
+    intent,
+    viewtest,
+    challenge_index,
+    load_challenge
 )
 
 
 urlpatterns = [
-    path("", index, name='home'),
+    path("", challenge_index, name='home'),
     path("intent/", intent, name='intent'),
-    path("pcode/", pseudocode, name='pcode'),
+    path("vtest/", viewtest, name='vtest'),
+    path("load_chlng/<int:chlng_id>/", load_challenge, name='load_chlng')
 ]
