@@ -24,16 +24,28 @@
                     {% if forloop.counter == intents|length %}
                     <div class="p-2">
                         <form action="" method="get">
+                            <div>
                             <label for="usrint">User Intent:</label>
                             <input type="text" placeholder="{{int.user_intent}}">
+                            </div>
+                            <div>
                             <label for="usrque">User Question:</label>
                             <input type="text" placeholder="{{int.user_question}}">
-                            <label for="usrsat">User Satified:</label>
-                            <input type="checkbox" checked="{{int.user_satisified}}">
+                            </div>
+                            <div>
+                            <label for="usrsat">User Satified: {{int.user_satisfied}}</label>
+                            {% if int.user_satisified != False %}
+                            <input type="checkbox" checked/>
+                            {% else %}
+                            <input type="checkbox" />
+                            {% endif %}
+                            </div>
+                            <div>
                             <label for="fb1" class="align-top">Intent Feedback: {{forloop.counter}}</label>
                             <textarea name="fb1" id="fb1" cols="40" rows="3">
                                 {{ int.user_feedback }}
                             </textarea>
+                            </div>
                         </form>
                     </div> 
                     {% else %}
@@ -41,8 +53,7 @@
                         <p>Intent Feedback: {{forloop.counter}}</p>
                         <p>User Intent: {{int.user_intent}}</p>
                         <p>User Question: {{int.user_question}}</p>
-                        <label for="usrsat">User Satified:</label>
-                        <input type="checkbox" checked="{{int.user_satisified}}" readonly>
+                        <p>User Satisfied: {{int.user_satisified}}</p>
                         <p>User Feedback: {{ int.user_feedback }}</p>
                     </div> 
                     {% endif %}

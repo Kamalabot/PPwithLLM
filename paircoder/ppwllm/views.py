@@ -2,8 +2,11 @@ from django.shortcuts import (
     render,
     get_object_or_404,
     get_list_or_404,
-    HttpResponse
+    HttpResponse,
+    redirect
     )
+
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from jinja2 import (
     FileSystemLoader,
@@ -75,13 +78,12 @@ def challenge_index(request):
 
 
 def new_challenge(request):
-    return render(request, 'intent_page.html', {"test":"test"}) 
+    return render(request, 'intent_page.html', {"test": "test"}) 
+
 
 def load_challenge(request, chlng_id):
     chlng_obj = get_object_or_404(Objective, pk=chlng_id)
-    int_objs = Promptintent.objects.all().filter(objective=chlng_obj)
-    all_ints = Promptintent.objects.all()
-    logging.info(all_ints[0].objective)
+    int_objs = Promptintent.objects.all().filter(objective__pk=chlng_id)
     int_data = []
     for intent in int_objs:
         int_data.append(
@@ -104,34 +106,39 @@ def intent(request):
         first_intent = request.POST.dict()
         logging.info(first_intent)
         input_prompt = prompt.render(**first_intent)
-        objective_obj = get_object_or_404(Objective,
-                                          challenge=first_intent['challenge'])
-        if not objective_obj:
-            objective_obj = Objective(challenge=first_intent['challenge'],
-                                      language=first_intent['language'],
-                                      apptype=first_intent['apptype'],
-                                      experience=first_intent['experience'])
+ 
+        objective_obj = Objective(challenge=first_intent['challenge'],
+                                  language=first_intent['language'],
+                                  apptype=first_intent['apptype'],
+                                  experience=first_intent['experience'])
 
-            objective_obj.save()
+        objective_obj.save()
 
         llm_pred = llm_call_openai(user_message=input_prompt)
         first_intent['intent'] = llm_pred['response']
         user_feedback = 'Requesting Feedback'
         logging.info(llm_pred['response'])
- 
+
         promptint = Promptintent(objective=objective_obj,
                                  user_intent=llm_pred["response"],
                                  user_question=first_intent['challenge'],
                                  user_feedback=user_feedback,
                                  llm_question='No Question')
         promptint.save()
- 
+
         context = {
+            "chlng_id": objective_obj.pk, 
             "input_prompt": input_prompt,
             "intent_pred": llm_pred,
             "user_feedback": user_feedback
         }
-    return render(request, 'intent_page.html', context)
+        return render(request, 'intent_page.html', context)
+
+    return redirect('page404')
+
+
+def page404(request):
+    return render(request, 'page404.html', {"error": "error"})
 
 
 def viewtest(request):
