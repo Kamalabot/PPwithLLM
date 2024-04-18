@@ -78,7 +78,21 @@ def challenge_index(request):
 
 
 def new_challenge(request):
-    return render(request, 'intent_page.html', {"test": "test"}) 
+    return render(request, 'intent_page.html', {"challenge": "New challenge"})
+
+
+def save_challenge(request):
+    if request.POST:
+        first_intent = request.POST.dict()
+        objective_obj = Objective(challenge=first_intent['challenge'],
+                                  language=first_intent['language'],
+                                  apptype=first_intent['apptype'],
+                                  experience=first_intent['experience'])
+
+        objective_obj.save()
+        context = dict(**first_intent)
+
+    return render(request, 'intent_page.html', context)
 
 
 def load_challenge(request, chlng_id):
@@ -127,7 +141,7 @@ def intent(request):
         promptint.save()
 
         context = {
-            "chlng_id": objective_obj.pk, 
+            "chlng_id": objective_obj.pk,
             "input_prompt": input_prompt,
             "intent_pred": llm_pred,
             "user_feedback": user_feedback

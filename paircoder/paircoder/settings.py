@@ -7,9 +7,11 @@ SECRET_KEY = 'django-insecure-yy*5b3p0@(ryqlulle4^4g#jf@k*&9svh84_6vp&z_nyjm0i-o
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
+    'channels_redis',
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,12 +50,23 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'paircoder.wsgi.application'
+ASGI_APPLICATION = 'paircoder.asgi.application'
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        # "BACKEND": "channels.layers.InMemoryChannelLayer"
+        "BACKEND": "channels_redis.layers.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)]
+        },
+    },
 }
 
 AUTH_PASSWORD_VALIDATORS = [
