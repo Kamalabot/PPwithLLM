@@ -7,16 +7,17 @@
 # 'query_string': b'', 'client': ['127.0.0.1', 57688], 'server': ['127.0.0.1', 8000], 'subprotocols': [],
 # 'asgi': {'version': '3.0'}, 'cookies': {}, 'session': <django.utils.functional.LazyObject object at 0x0000026D36BF2A50>,
 # 'user': <channels.auth.UserLazyObject object at 0x0000026D36BF8710>, 'path_remaining': '',
-# 'url_route': {'args': (), 'kwargs': {'chlng': 'lobby'}}}        
-
-
+# 'url_route': {'args': (), 'kwargs': {'chlng': 'lobby'}}}
 import json
 from channels.generic.websocket import (
-    WebsocketConsumer,
     AsyncWebsocketConsumer
 )
 from channels.db import database_sync_to_async
 from .models import Objective, Promptintent
+from .views import (
+    llm_call_openai,
+    env,
+)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -37,21 +38,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name, self.channel_name
         )
 
+    # Receive message from WebSocket
     async def receive(self, text_data):
-        print('this is recv:', text_data)
         text_data_json = json.loads(text_data)
         # converts recd text data to dict
-        message = text_data_json['message']
-        # the following seems to be broadcasting the message to all
-        await self.channel_layer.group_send(
-            self.room_group_name, {"type": "chat_message", "message": message}
-        )
+        print(text_data_json)
+        if text_data_json:
+            prompt_temp = env.get_template("intent_modifier.prompt")
+            prompt_text = prompt_temp.render(**text_data_json)
+            llm_pred = llm_call_openai(user_message=prompt_text)
+            print(llm_pred)
+            await self.send(text_data=json.dumps(llm_pred))
 
+        # the following seems to be broadcasting the message to all
+        # await self.channel_layer.group_send(
+            # self.room_group_name, {"type": "chat_message", "message": message}
+        # )
+
+    # recv message from room grp
     async def chat_message(self, event):
         message = event['message']
-        challenges = await self.get_challenges()
-        print('inside chat_message', challenges[0])
-        await self.send(text_data=json.dumps({'message': message}))
+        if message == 'challenges':
+            challenges = await self.get_challenges()
+            chlng_json = {"rows": challenges}
+            await self.send(text_data=json.dumps(chlng_json))
 
 
     @database_sync_to_async

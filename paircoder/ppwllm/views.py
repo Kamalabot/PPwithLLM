@@ -78,6 +78,11 @@ def challenge_index(request):
     return render(request, 'chlnge_index.html', {"challenges": obj_data})
 
 
+# starts with new_challenge of empty page
+# page is filled with save challenge
+# the load_challenge will call for loading challenge, and ready for checking intent
+# then intent view will populate the front end.
+
 def new_challenge(request):
     return render(request, 'intent_page.html', {"newchallenge": "New challenge"})
 
@@ -92,6 +97,7 @@ def save_challenge(request):
 
         objective_obj.save()
         context = dict(**first_intent)
+        return redirect(reverse('load_chlng', args=[objective_obj.pk]))
 
     return render(request, 'intent_page.html', context)
 
@@ -111,45 +117,42 @@ def load_challenge(request, chlng_id):
              }
         )
     context = {"challenge": chlng_obj,
+               "chlng_id": chlng_id,
                "intents": int_data}
     return render(request, 'intent_page.html', context)
 
 
-def intent(request):
+def intent(request, chlng_id):
     prompt = env.get_template(intent_clarifier)
-    if request.POST:
-        first_intent = request.POST.dict()
-        logging.info(first_intent)
-        input_prompt = prompt.render(**first_intent)
- 
-        objective_obj = Objective(challenge=first_intent['challenge'],
-                                  language=first_intent['language'],
-                                  apptype=first_intent['apptype'],
-                                  experience=first_intent['experience'])
-
-        objective_obj.save()
-
+    try:
+        chlng_obj = get_object_or_404(Objective, pk=chlng_id)
+        chlng_dict = dict(challenge=chlng_obj.challenge,
+                          apptype=chlng_obj.apptype,
+                          language=chlng_obj.language,
+                          experience=chlng_obj.experience)
+        input_prompt = prompt.render(**chlng_dict)
         llm_pred = llm_call_openai(user_message=input_prompt)
-        first_intent['intent'] = llm_pred['response']
-        user_feedback = 'Requesting Feedback'
-        logging.info(llm_pred['response'])
+        user_feedback = 'Provide your feedback here...'
 
-        promptint = Promptintent(objective=objective_obj,
+        promptint = Promptintent(objective=chlng_obj,
                                  user_intent=llm_pred["response"],
-                                 user_question=first_intent['challenge'],
+                                 user_question=chlng_obj.challenge,
                                  user_feedback=user_feedback,
                                  llm_question='No Question')
         promptint.save()
 
         context = {
-            "chlng_id": objective_obj.pk,
+            "challenge": chlng_dict,
+            "chlng_id": chlng_id,
             "input_prompt": input_prompt,
-            "intent_pred": llm_pred,
+            "intent_pred": llm_pred['response'],
             "user_feedback": user_feedback
         }
         return render(request, 'intent_page.html', context)
-
-    return redirect('page404')
+     
+    except Exception as e:
+        logging.info(e)
+        return redirect('page404')
 
 
 def page404(request):

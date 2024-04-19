@@ -55,7 +55,7 @@
                 {% else %}
                 <div class="w-30 mx-1 p-2">
                     <div>
-                        <h6>Loading {{ challenge }}: </h6>
+                        <h6>Loading {{ challenge.challenge|truncatewords:3 }}: </h6>
                     </div>
                     <div>
                         <p>Your Challenge: <span>{{challenge.challenge}}</span></p>
@@ -70,17 +70,22 @@
                         <p>Coding Exp: <span>{{challenge.experience}}</span></label>
                     </div>
                     <div>
-                        <button id="submit" class="my-3 btn btn-primary mx-3">Start Review</button>
+                       <a href="{% url 'intent' chlng_id %}"><button id="intf" class="my-3 btn btn-primary mx-3">Find Intent</button></a>
                     </div>
                 </div>
                 {% endif %}
                 <div class="w-50 mx-1">
+                    <h6>Prompt Intent: </h6>
+                    <textarea name="prompt" id="prompt" cols="100" rows="10">{{input_prompt}}</textarea>
+                </div>
+                <div class="w-50 mx-1">
                     <h6>Chat with AI: </h6>
-                    <textarea name="chat_window" id="chat_window" cols="100" rows="10"></textarea>
-                    <input type="text" size="80" id="user_msg"><br>
-                    <input type="button" class="btn btn-success my-1" value="send">
+                    <textarea name="chat_window" id="chat_window" cols="100" rows="10">{{intent_pred}}</textarea>
+                    <input type="text" size="80" id="user_msg" placeholder="{{user_feedback}}"><br>
+                    <input type="button" class="btn btn-success my-1" value="send" id="submit">
                 </div>
             </div>
        </div>
     </div>
+    <script src="{% static 'client.js' %}"></script>
 {% endblock %}
