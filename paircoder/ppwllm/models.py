@@ -30,7 +30,7 @@ class Objective(models.Model):
     # need to add datefield for better control
 
     def __str__(self):
-        return self.name
+        return self.challenge
 
 
 class Promptintent(models.Model):

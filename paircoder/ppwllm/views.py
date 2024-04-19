@@ -23,6 +23,7 @@ from .forms import ObjectiveForm
 
 
 load_dotenv("D:\\gitFolders\\python_de_learners_data\\.env")
+# load_dotenv("/mnt/d/gitFolders/python_de_learners_data/.env")
 client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 
 logging.basicConfig(format="%(message)s | %(levelname)s",
@@ -78,7 +79,7 @@ def challenge_index(request):
 
 
 def new_challenge(request):
-    return render(request, 'intent_page.html', {"challenge": "New challenge"})
+    return render(request, 'intent_page.html', {"newchallenge": "New challenge"})
 
 
 def save_challenge(request):
@@ -111,7 +112,7 @@ def load_challenge(request, chlng_id):
         )
     context = {"challenge": chlng_obj,
                "intents": int_data}
-    return render(request, 'challenge_page.html', context)
+    return render(request, 'intent_page.html', context)
 
 
 def intent(request):

@@ -7,13 +7,13 @@
             <h3>Welcome. Lets get coding </h3>
         </div>
         <div>
-            <div class="d-flex flex-row">
-                {% if challenge %}
-                <div class="w-40 mx-1 p-2">
+            <div class="d-flex flex-row flex-wrap">
+                {% if newchallenge %}
+                <div class="w-30 mx-1 p-2">
                     <form action="{% url 'save' %}" method="post">
                         {% csrf_token %}
                         <div>
-                            <h6>Begin {{ challenge }}: </h6>
+                            <h6>Begin {{ newchallenge }}: </h6>
                         </div>
                         <div style="height: 100px;">
                             <label for="challenge">Your Challenge </label>
@@ -52,28 +52,35 @@
                         </div>
                     </form>
                 </div>
+                {% else %}
+                <div class="w-30 mx-1 p-2">
+                    <div>
+                        <h6>Loading {{ challenge }}: </h6>
+                    </div>
+                    <div>
+                        <p>Your Challenge: <span>{{challenge.challenge}}</span></p>
+                    </div>
+                    <div>
+                        <p>Code Lang: <span>{{challenge.language}}</span></p>
+                   </div>
+                    <div>
+                        <p>App Type: <span>{{challenge.apptype}}</span></p>
+                    </div>
+                    <div>
+                        <p>Coding Exp: <span>{{challenge.experience}}</span></label>
+                    </div>
+                    <div>
+                        <button id="submit" class="my-3 btn btn-primary mx-3">Start Review</button>
+                    </div>
+                </div>
                 {% endif %}
                 <div class="w-50 mx-1">
-                    <h6>Prompt for Intent: </h6>
-                    <textarea name="int_prompt" id="" cols="100" rows="10">{{ input_prompt }}</textarea>
+                    <h6>Chat with AI: </h6>
+                    <textarea name="chat_window" id="chat_window" cols="100" rows="10"></textarea>
+                    <input type="text" size="80" id="user_msg"><br>
+                    <input type="button" class="btn btn-success my-1" value="send">
                 </div>
             </div>
-            <div class="d-flex flex-row">
-                <div class="w-100">
-                    <div class="p-4">
-                        <h3>Intent Verification:</h3>
-                    </div>
-                    <div class="p-4">
-                        <label for="Intent 1" class="align-top">Predicted Intent: </label>
-                        <textarea name="intent1" id="intent1" cols="80" rows="3" readonly>
-                        {{ intent_pred.response }}
-                        </textarea>
-                        {% if intent_pred %}
-                        <a href="{% url 'load_chlng' chlng_id %}" class="btn btn-primary">Improve Intent</a>
-                        {% endif %}
-                    </div> 
-                </div>
-           </div>
-        </div>
+       </div>
     </div>
 {% endblock %}
