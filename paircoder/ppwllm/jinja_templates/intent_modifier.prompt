@@ -1,5 +1,5 @@
 Kindly review the below user_feedback 
-user_feedback: {{ user_feedback }} and modify the below intent 
-intent :{{ intent }} and provide reply below 
+user_feedback: {{ user_msg }} and modify the below original intent 
+original intent :{{ intent }} and provide reply below 
 updated_intent:
 

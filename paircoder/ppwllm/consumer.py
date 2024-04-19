@@ -47,7 +47,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             prompt_temp = env.get_template("intent_modifier.prompt")
             prompt_text = prompt_temp.render(**text_data_json)
             llm_pred = llm_call_openai(user_message=prompt_text)
-            print(llm_pred)
+            objective = await self.get_challenge(self.room_name)
+            prompt_intent = dict(objective=objective,
+                                 user_intent=llm_pred['response'],
+                                 user_feedback=text_data_json['usr_msg'],
+                                 user_question=objective.challenge,
+                                 user_satisfied=False,
+                                 llm_question='No queries'
+                                 )
+            await self.write_promptintent(prompt_intent)
             await self.send(text_data=json.dumps(llm_pred))
 
         # the following seems to be broadcasting the message to all
@@ -58,15 +66,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
     # recv message from room grp
     async def chat_message(self, event):
         message = event['message']
-        if message == 'challenges':
-            challenges = await self.get_challenges()
-            chlng_json = {"rows": challenges}
-            await self.send(text_data=json.dumps(chlng_json))
+        await self.send(text_data=json.dumps({'message': message}))
 
 
     @database_sync_to_async
     def get_challenges(self):
-        table_objs = Objective.objects.all() 
+        table_objs = Objective.objects.all()
         table_data = []
         for obj in table_objs:
             table_data.append({
@@ -76,3 +81,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "experience": obj.experience
             })
         return table_data
+
+
+    @database_sync_to_async
+    def get_challenge(self, chlng_id):
+        return Objective.objects.get(pk=chlng_id)
+        # table_data = {
+                # "challenge": obj.challenge,
+                # "language": obj.language,
+                # "apptype": obj.apptype,
+                # "experience": obj.experience
+            # }
+
+
+    @database_sync_to_async
+    def write_promptintent(self, prompt_dict):
+        pintent = Promptintent(**prompt_dict)
+        pintent.save()
+        return pintent.pk
