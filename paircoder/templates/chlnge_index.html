@@ -18,7 +18,8 @@
                     <p><span>Language:</span>{{ chlng.language }}</p>
                     <p><span>AppType:</span>{{ chlng.apptype }}</p>
                     <p><span>Experience:</span>{{ chlng.experience }}</p>
-                    <a href="{% url 'load_chlng' chlng.id %}" class="btn btn-success">Load Challenge</a>
+                    <a href="{% url 'load_chlng' chlng.id %}" class="btn btn-success mx-3">Load Challenge</a>
+                    <a href="{% url 'del' chlng.id %}" class="btn btn-danger mx-4">Delete Challenge</a>
                 </div> 
             </div>
             {% endfor %}

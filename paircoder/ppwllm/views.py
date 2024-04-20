@@ -5,7 +5,7 @@ from django.shortcuts import (
     HttpResponse,
     redirect
     )
-
+from django.db.utils import OperationalError
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from jinja2 import (
@@ -65,18 +65,21 @@ def llm_call_openai(user_message: str):
 
 
 def challenge_index(request):
-    chlng_objs = Objective.objects.all().order_by('challenge')
-    obj_data = []
-    for chlng in chlng_objs:
-        obj_data.append({
-            "id": chlng.pk,
-            "challenge": chlng.challenge,
-            "language": chlng.language,
-            "apptype": chlng.apptype,
-            "experience": chlng.experience
-        })
-    logging.info(obj_data)
-    return render(request, 'chlnge_index.html', {"challenges": obj_data})
+    try:
+        chlng_objs = Objective.objects.all().order_by('challenge')
+        obj_data = []
+        for chlng in chlng_objs:
+            obj_data.append({
+                "id": chlng.pk,
+                "challenge": chlng.challenge,
+                "language": chlng.language,
+                "apptype": chlng.apptype,
+                "experience": chlng.experience
+            })
+        logging.info(obj_data)
+        return render(request, 'chlnge_index.html', {"challenges": obj_data})
+    except OperationalError:
+        return render(request, 'chlnge_index.html', {"no_table": 'no_table'})
 
 
 # starts with new_challenge of empty page
@@ -85,7 +88,10 @@ def challenge_index(request):
 # then intent view will populate the front end.
 
 def new_challenge(request):
-    return render(request, 'intent_page.html', {"newchallenge": "New challenge"})
+    context = {"newchallenge": "placeholder",
+               "input_prompt": "Prompt will be shown here",
+               "chlng_id": "chat_0"} # this is just a placeholder
+    return render(request, 'intent_page.html', context)
 
 
 def save_challenge(request):
@@ -103,6 +109,16 @@ def save_challenge(request):
     return render(request, 'intent_page.html', context)
 
 
+def delete_challenge(request, chlng_id):
+    try:
+        del_obj = get_object_or_404(Objective, pk=chlng_id)
+        del_obj.delete()
+        return redirect(reverse('home'))
+    except Exception as e:
+        logging.info(e)
+        return redirect(reverse('page404'))
+
+
 def dbobj_to_prompt(db_obj, jinja_env):
     prompt = jinja_env.get_template(intent_clarifier)
     chlng_dict = dict(challenge=db_obj.challenge,
@@ -115,18 +131,30 @@ def dbobj_to_prompt(db_obj, jinja_env):
 def assemble_convo(intent_objs: List[Promptintent]):
     conversation = ""
     if len(intent_objs) > 0:
-        conversation = intent_objs[0].user_intent  # this is the first intent
+        conversation = "AI: " + intent_objs[0].user_intent + "\n"
+        # this is the first intent
     else:
         return conversation
     for intent in intent_objs[1:]:
-        conversation += "AI: " + intent.user_intent + '\n'
         conversation += "User: " + intent.user_feedback + '\n'
+        if intent.llm_question != "No question from AI":
+            conversation += "AI Question: " + intent.llm_question + '\n'
+        else:
+            conversation += "AI: " + intent.user_intent + '\n'
     return conversation
 
 
 def load_challenge(request, chlng_id):
     chlng_obj = get_object_or_404(Objective, pk=chlng_id)
     int_objs = Promptintent.objects.all().filter(objective__pk=chlng_id)
+    logging.info(int_objs)
+    p_ints_len = len(int_objs)
+    logging.info(p_ints_len)
+    if p_ints_len > 0:
+        final_prompt = int_objs[p_ints_len-1].input_prompt
+        logging.info(f"final_prompt: {final_prompt}")
+    else:
+        final_prompt = "Prompt will be displayed here"
     int_data = []  # this is redundant
     for intent in int_objs:
         int_data.append(
@@ -135,6 +163,7 @@ def load_challenge(request, chlng_id):
                 "user_question": intent.user_question,
                 "user_feedback": intent.user_feedback,
                 "user_satisfied": intent.user_satisfied,
+                "input_prompt": intent.input_prompt,
                 "llm_question": intent.llm_question,
              }
         )
@@ -144,7 +173,8 @@ def load_challenge(request, chlng_id):
     context = {"challenge": chlng_obj,
                "chlng_id": chlng_id,
                "intents": int_data,
-               "assembled_dialogue": assembled_dialogue}
+               "assembled_dialogue": assembled_dialogue,
+               "final_prompt": final_prompt}
    
     return render(request, 'intent_page.html', context)
 
@@ -152,9 +182,9 @@ def load_challenge(request, chlng_id):
 def intent_question_extractor(llm_prediction: str):
     pred_lines = llm_prediction.split('\n')
     for idx, line in enumerate(pred_lines):
-        logging.info("Printing predicted results below as lines: \n")
+        logging.debug("Printing predicted results below as lines: \n")
         line = line.lower()
-        logging.info(f"Line-{idx}: {line}")
+        logging.debug(f"Line-{idx}: {line}")
         if 'intent:' in line:
             pred_intent = line.split('intent:')[1]
         if 'question:' in line:
@@ -190,6 +220,7 @@ def intent(request, chlng_id):
                                  user_intent=processed_pred['pred_intent'],
                                  user_question=chlng_obj.challenge,
                                  user_feedback=user_feedback,
+                                 input_prompt=input_prompt,
                                  llm_question=processed_pred['pred_question'])
         promptint.save()
 

@@ -75,8 +75,14 @@
                 </div>
                 {% endif %}
                 <div class="w-50 mx-1">
-                    <h6>Prompt Intent: </h6>
-                    <textarea name="prompt" id="prompt" cols="100" rows="10">{{input_prompt}}</textarea>
+                    <h6>Prompt Text: </h6>
+                    {% if input_prompt %}
+                        <textarea name="prompt" id="prompt" cols="100" rows="10">{{input_prompt}}</textarea>
+                    {% elif final_prompt %}
+                        <textarea name="prompt" id="prompt" cols="100" rows="10">{{final_prompt}}</textarea>
+                    {% else %}
+                        <textarea name="prompt" id="prompt" cols="100" rows="10"></textarea>
+                    {% endif %}
                 </div>
                 <div class="w-50 mx-1">
                     <h6>Chat with AI: </h6>
@@ -106,11 +112,21 @@
             console.log(json_data)
             const intent = document.querySelector("#chat_window").value
             const user_msg = document.querySelector("#user_msg").value
+            document.querySelector("#prompt").value = json_data['input_prompt']
+
+            if (json_data['pred_intent']) {
             document.querySelector("#chat_window").value += `
 User: ${user_msg}
-AI: ${json_data['response']}
-            `
+AI intent: ${json_data['pred_intent']}
+`
+        } 
+            if (json_data['pred_question']){
+             document.querySelector("#chat_window").value += `
+User: ${user_msg}
+AI Question: ${json_data['pred_question']}
+`
             }
-        });
+        };
+    });
     </script>
 {% endblock %}

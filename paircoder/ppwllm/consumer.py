@@ -20,6 +20,10 @@ from .views import (
     intent_question_extractor,
     assemble_convo,
 )
+import logging
+
+logging.basicConfig(format="%(message)s | %(levelname)s",
+                    level=logging.INFO)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -50,16 +54,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             prompt_text = prompt_temp.render(**text_data_json)
             llm_pred = llm_call_openai(user_message=prompt_text)
             processed_pred = intent_question_extractor(llm_pred['response'])
+            logging.info(processed_pred)
             objective = await self.get_challenge(self.room_name)
             prompt_intent = dict(objective=objective,
                                  user_intent=processed_pred['pred_intent'],
                                  user_feedback=text_data_json['usr_msg'],
                                  user_question=objective.challenge,
                                  user_satisfied=False,
+                                 input_prompt=prompt_text,
                                  llm_question=processed_pred['pred_question']
                                  )
-            await self.write_promptintent(prompt_intent)
-            await self.send(text_data=json.dumps(llm_pred))
+            write_pi = await self.write_promptintent(prompt_intent)
+            print(write_pi)
+            processed_pred['input_prompt'] = prompt_text
+            await self.send(text_data=json.dumps(processed_pred))
 
         # the following seems to be broadcasting the message to all
         # await self.channel_layer.group_send(
@@ -84,6 +92,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "experience": obj.experience
             })
         return table_data
+
+
+    @database_sync_to_async
+    def get_promptintents(self, obj_id):
+        intent_objs = Promptintent.objects.all().filter(objective__pk=obj_id)
+        return intent_objs
 
 
     @database_sync_to_async

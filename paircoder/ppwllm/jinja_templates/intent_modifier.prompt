@@ -1,5 +1,7 @@
 Kindly review the below user_feedback 
-user_feedback: {{ user_msg }} and modify the below original intent 
-original intent :{{ intent }} and provide reply below 
+user_feedback: {{ usr_msg }} and modify the below original intent 
+original intent :{{ intent }} and provide reply below in single sentence. 
+Only print the final reply. If you have followup up question, then print the 
+question by prefixing it with question: 
 updated_intent:
 

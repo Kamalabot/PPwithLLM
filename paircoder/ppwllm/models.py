@@ -39,4 +39,5 @@ class Promptintent(models.Model):
     user_question = models.TextField()
     user_feedback = models.TextField()
     user_satisfied = models.BooleanField(default=False)
+    input_prompt = models.TextField()
     llm_question = models.TextField()
