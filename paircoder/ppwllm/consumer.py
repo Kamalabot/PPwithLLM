@@ -17,6 +17,8 @@ from .models import Objective, Promptintent
 from .views import (
     llm_call_openai,
     env,
+    intent_question_extractor,
+    assemble_convo,
 )
 
 
@@ -47,13 +49,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             prompt_temp = env.get_template("intent_modifier.prompt")
             prompt_text = prompt_temp.render(**text_data_json)
             llm_pred = llm_call_openai(user_message=prompt_text)
+            processed_pred = intent_question_extractor(llm_pred['response'])
             objective = await self.get_challenge(self.room_name)
             prompt_intent = dict(objective=objective,
-                                 user_intent=llm_pred['response'],
+                                 user_intent=processed_pred['pred_intent'],
                                  user_feedback=text_data_json['usr_msg'],
                                  user_question=objective.challenge,
                                  user_satisfied=False,
-                                 llm_question='No queries'
+                                 llm_question=processed_pred['pred_question']
                                  )
             await self.write_promptintent(prompt_intent)
             await self.send(text_data=json.dumps(llm_pred))

@@ -20,6 +20,7 @@ from openai import OpenAI
 import os
 from .models import Objective, Promptintent
 from .forms import ObjectiveForm
+from typing import List
 
 
 load_dotenv("D:\\gitFolders\\python_de_learners_data\\.env")
@@ -102,10 +103,31 @@ def save_challenge(request):
     return render(request, 'intent_page.html', context)
 
 
+def dbobj_to_prompt(db_obj, jinja_env):
+    prompt = jinja_env.get_template(intent_clarifier)
+    chlng_dict = dict(challenge=db_obj.challenge,
+                      apptype=db_obj.apptype,
+                      language=db_obj.language,
+                      experience=db_obj.experience)
+    return prompt.render(**chlng_dict)
+
+
+def assemble_convo(intent_objs: List[Promptintent]):
+    conversation = ""
+    if len(intent_objs) > 0:
+        conversation = intent_objs[0].user_intent  # this is the first intent
+    else:
+        return conversation
+    for intent in intent_objs[1:]:
+        conversation += "AI: " + intent.user_intent + '\n'
+        conversation += "User: " + intent.user_feedback + '\n'
+    return conversation
+
+
 def load_challenge(request, chlng_id):
     chlng_obj = get_object_or_404(Objective, pk=chlng_id)
     int_objs = Promptintent.objects.all().filter(objective__pk=chlng_id)
-    int_data = []
+    int_data = []  # this is redundant
     for intent in int_objs:
         int_data.append(
             {
@@ -116,10 +138,38 @@ def load_challenge(request, chlng_id):
                 "llm_question": intent.llm_question,
              }
         )
+    assembled_dialogue = assemble_convo(int_objs)
+    logging.info(assembled_dialogue)
+
     context = {"challenge": chlng_obj,
                "chlng_id": chlng_id,
-               "intents": int_data}
+               "intents": int_data,
+               "assembled_dialogue": assembled_dialogue}
+   
     return render(request, 'intent_page.html', context)
+
+
+def intent_question_extractor(llm_prediction: str):
+    pred_lines = llm_prediction.split('\n')
+    for idx, line in enumerate(pred_lines):
+        logging.info("Printing predicted results below as lines: \n")
+        line = line.lower()
+        logging.info(f"Line-{idx}: {line}")
+        if 'intent:' in line:
+            pred_intent = line.split('intent:')[1]
+        if 'question:' in line:
+            pred_question = line.split('question:')[1]
+    try:
+        pred_intent
+    except NameError:
+        pred_intent = 'Unable to locate intent, recheck prompt'
+    try:
+        pred_question
+    except NameError:
+        pred_question = 'No question from AI'
+
+    return {"pred_intent": pred_intent,
+            "pred_question": pred_question}
 
 
 def intent(request, chlng_id):
@@ -132,20 +182,22 @@ def intent(request, chlng_id):
                           experience=chlng_obj.experience)
         input_prompt = prompt.render(**chlng_dict)
         llm_pred = llm_call_openai(user_message=input_prompt)
-        user_feedback = 'Provide your feedback here...'
 
+        user_feedback = 'Provide your feedback here...'
+        processed_pred = intent_question_extractor(llm_pred['response'])
+        logging.info(f"processed pred: {processed_pred}")
         promptint = Promptintent(objective=chlng_obj,
-                                 user_intent=llm_pred["response"],
+                                 user_intent=processed_pred['pred_intent'],
                                  user_question=chlng_obj.challenge,
                                  user_feedback=user_feedback,
-                                 llm_question='No Question')
+                                 llm_question=processed_pred['pred_question'])
         promptint.save()
 
         context = {
             "challenge": chlng_dict,
             "chlng_id": chlng_id,
             "input_prompt": input_prompt,
-            "intent_pred": llm_pred['response'],
+            "intent_pred": processed_pred['pred_intent'],
             "user_feedback": user_feedback
         }
         return render(request, 'intent_page.html', context)

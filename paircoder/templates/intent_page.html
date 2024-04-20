@@ -80,7 +80,11 @@
                 </div>
                 <div class="w-50 mx-1">
                     <h6>Chat with AI: </h6>
-                    <textarea name="chat_window" id="chat_window" cols="100" rows="10">{{intent_pred}}</textarea>
+                    {% if assembled_dialogue %}
+                        <textarea name="chat_window" id="chat_window" cols="100" rows="10">{{assembled_dialogue}}</textarea>
+                    {% elif intent_pred %}
+                        <textarea name="chat_window" id="chat_window" cols="100" rows="10">{{intent_pred}}</textarea>
+                    {% endif %}
                     <input type="text" size="80" id="user_msg" placeholder="{{user_feedback}}"><br>
                     <input type="button" class="btn btn-success my-1" value="send" id="submit">
                 </div>
@@ -103,9 +107,8 @@
             const intent = document.querySelector("#chat_window").value
             const user_msg = document.querySelector("#user_msg").value
             document.querySelector("#chat_window").value += `
-        ${intent}
-                                    Your Feedback: ${user_msg}
-                        Update Intent: ${json_data['response']}
+User: ${user_msg}
+AI: ${json_data['response']}
             `
             }
         });
