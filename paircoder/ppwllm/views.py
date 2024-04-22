@@ -21,11 +21,15 @@ import os
 from .models import Objective, Promptintent
 from .forms import ObjectiveForm
 from typing import List
+from groq import Groq
+import re
+import json
 
 
 load_dotenv("D:\\gitFolders\\python_de_learners_data\\.env")
 # load_dotenv("/mnt/d/gitFolders/python_de_learners_data/.env")
 client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 logging.basicConfig(format="%(message)s | %(levelname)s",
                     level=logging.INFO)
@@ -37,6 +41,25 @@ env = Environment(
     loader=FileSystemLoader(base_view / 'jinja_templates'),
     autoescape=select_autoescape,
 )
+
+
+def extract_json(text):
+    # Define the regular expression pattern
+    pattern = r"```(.*?)```"
+
+    # Use re.findall() to extract text between ```
+    try:
+        extracted_text = re.findall(pattern,
+                                    text,
+                                    re.DOTALL)
+        # logging.info(extracted_text[0])
+    # Print the extracted text
+        # loaded_dict = json.loads(extracted_text[0])
+        return extracted_text[0] 
+    except Exception as e:
+        logging.info(e)
+        loaded_dict ={"error": "Unable to extract json"}
+        return loaded_dict
 
 
 def llm_call_openai(user_message: str):
@@ -62,6 +85,82 @@ def llm_call_openai(user_message: str):
     except Exception as e:
         logging.info(e)
         return {"error": "Error occurred while processing request."}
+
+
+def llm_groq_parser(user_message: str):
+    user_prompt = f"""Review the message below and extract the data inside
+    into JSON format and return the same. If the data contains multiple json
+    data, then enclose into a list. Message: {user_message}"""
+    try:
+        response = groq_client.chat.completions.create(
+            model='llama3-70b-8192',
+            messages=[
+                {
+                    "role": "user",
+                    # "content": user_prompt
+                    "content": user_message
+                }
+            ],
+        )
+        assistant_message = response.choices[0].message.content
+        # parsed_text = extract_json(assistant_message)
+        return assistant_message 
+    except Exception as e:
+        logging.info(e)
+        return {"error": "Error occurred while processing request."}
+
+
+def llm_text_parser(user_message: str):
+    system_prompt = """You are an expert at parsing text of any type
+    including variety of messages in whatsapp and other social media. You 
+    extract the data present in the messages into a repeatable schema and 
+    generate json format data."""
+    user_prompt = f"""Review the message below and extract the data inside
+    into JSON format and return the same. If the data contains multiple json
+    data, then enclose into a list. Message: {user_message}"""
+    try:
+        response = client.chat.completions.create(
+            model='gpt-3.5-turbo',
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.0,
+            top_p=1,
+            frequency_penalty=0.1,
+            presence_penalty=0.1
+        )
+        assistant_message = response.choices[0].message.content
+        parsed_text = extract_json(assistant_message)
+        return parsed_text
+
+    except Exception as e:
+        logging.info(e)
+        return {"error": "Error occurred while processing request."}
+
+
+def post_message(request):
+    return render(request, 'parse_message.html', {'message':'none'})
+
+
+@csrf_exempt
+def parse_message(request):
+    if request.POST:
+        dictionary = request.POST.dict()
+        logging.debug(dictionary)
+        message = str(dictionary['message'])
+        parsed_openai = llm_text_parser(message)
+        logging.info(f"openai: {parsed_openai}")
+        parsed_llama3 = llm_groq_parser(message)
+        logging.info(f"llama3: {parsed_llama3}")
+        context = {
+            "llama3_reply": parsed_llama3,
+            "openai_reply": parsed_openai,
+            "message": message
+        }
+        return render(request, 'parse_message.html', context)
+    else:
+        return render(reverse('page404'))
 
 
 def challenge_index(request):

@@ -8,6 +8,8 @@ from .views import (
     save_challenge,
     page404,
     delete_challenge,
+    parse_message,
+    post_message
 )
 
 urlpatterns = [
@@ -19,4 +21,6 @@ urlpatterns = [
     path("vtest/", viewtest, name='vtest'),
     path("load_chlng/<int:chlng_id>/", load_challenge, name='load_chlng'),
     path("page404/", page404, name='page404'),
+    path('post_msg', post_message, name='post_msg'),
+    path('parse_msg', parse_message, name='parse_msg'),
 ]

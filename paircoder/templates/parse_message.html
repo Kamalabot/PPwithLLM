@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}PPwLLM{% endblock %}
+{% block content %}
+    <div class="container">
+        <div>
+            <h3>Lets Parse Some Message</h3>
+        </div>
+        <div>
+            <div class="d-flex">
+                <div class="w-100">
+                    {% csrf_token %}
+                    <form action="{% url 'parse_msg' %}" method="post">
+                        <label for="message" class="mx-3 align-top"><strong>Your Message:</strong></label>
+                        {% if message == 'none' %}
+                        <textarea name="message" id="message" cols="100" rows="50" placeholder="Paste Your Message Here"></textarea>
+                        {% else %}
+                        <textarea name="message" id="message" cols="100" rows="50">{{ message }}</textarea>
+                        {% endif %}
+                        <input type="submit" class="btn btn-primary mx-3" value="Submit">
+                    </form>
+                </div>
+            </div>
+            {% if openai_reply or llama3_reply %}
+            <div class="d-flex">
+                <div class="w-50">
+                    <p><strong>OpenAI Output: </strong></p>
+                    <code>{{openai_reply}}</code>
+                </div>
+                <div class="w-50">
+                    <p><strong>Llama3 Output: </strong></p>
+                    <code>{{llama3_reply}}</code>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
