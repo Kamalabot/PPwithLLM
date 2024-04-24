@@ -18,7 +18,11 @@ import logging
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
-from .models import Objective, Promptintent
+from .models import (
+    Objective,
+    Promptintent,
+    Codesnippet
+)
 from .forms import ObjectiveForm
 from typing import List
 from groq import Groq
@@ -91,6 +95,11 @@ def llm_groq_parser(user_message: str):
     user_prompt = f"""Review the message below and extract the data inside
     into JSON format and return the same. If the data contains multiple json
     data, then enclose into a list. Message: {user_message}"""
+    data_engineer_prompt = f"""You are a data engineer, proficient in the use of 
+    Large Language Models, and are tasked with identification of individual
+    text messages and structuring each individual message in JSON format
+    to create a knowledge graph from any given data.
+    Unstructured Data: {user_message}"""
     try:
         response = groq_client.chat.completions.create(
             model='llama3-70b-8192',
@@ -98,7 +107,7 @@ def llm_groq_parser(user_message: str):
                 {
                     "role": "user",
                     # "content": user_prompt
-                    "content": user_message
+                    "content": data_engineer_prompt,
                 }
             ],
         )
@@ -218,6 +227,25 @@ def delete_challenge(request, chlng_id):
         return redirect(reverse('page404'))
 
 
+def delete_intent(request, itt_id):
+    try:
+        del_obj = get_object_or_404(Promptintent, pk=itt_id)
+        del_obj.delete()
+        return redirect(reverse('home'))
+    except Exception as e:
+        logging.info(e)
+        return redirect(reverse('page404'))
+
+
+def delete_snippet(request, sn_id):
+    try:
+        del_obj = get_object_or_404(Codesnippet, pk=sn_id)
+        del_obj.delete()
+        return redirect(reverse('home'))
+    except Exception as e:
+        logging.info(e)
+        return redirect(reverse('page404'))
+
 def dbobj_to_prompt(db_obj, jinja_env):
     prompt = jinja_env.get_template(intent_clarifier)
     chlng_dict = dict(challenge=db_obj.challenge,
@@ -301,6 +329,44 @@ def intent_question_extractor(llm_prediction: str):
             "pred_question": pred_question}
 
 
+def code_extractor(llm_prediction: str):
+    pattern1 = r"can_do:\s*(.*?)\s*Language:"
+    pattern2 = r"Language:\s*(.*?)\s*```" 
+    pattern3 = r"```(.*?)```"
+    match1 = re.search(pattern1, llm_prediction)
+    if match1:
+        can_do = match1.group(1).strip()
+    else:
+        can_do = 'Not found'
+    match2 = re.search(pattern2, llm_prediction)
+    if match2:
+        language = match2.group(1).strip()
+    else:
+        language = 'Not Found'
+    match3 = re.search(pattern3, llm_prediction, re.DOTALL)
+    if match3:
+        snip = match3.group(1).strip()
+    else:
+        snip = 'Not Found'
+    final_dict = dict(
+        can_do=can_do,
+        language=language,
+        snip=snip
+    )
+    return final_dict
+
+
+def intent_code_assembler(codesnips: Codesnippet):
+    assembler = ""
+    logging.info(len(codesnips))
+    for ind, code in enumerate(codesnips):
+        assembler += f"Intent: {code.intent.user_intent}"
+        assembler += "\n\n"
+        assembler += f"Snippet: {code_extractor(code.snippet)['snip']}"
+        assembler += f"\n\n****** Conv {ind + 1} End********\n\n"
+
+    return assembler 
+
 def intent(request, chlng_id):
     prompt = env.get_template(intent_clarifier)
     try:
@@ -335,6 +401,79 @@ def intent(request, chlng_id):
     except Exception as e:
         logging.info(e)
         return redirect('page404')
+
+
+def begin_coding(request, chlng_id):
+    # get the final intent that is present in the Promptintent table
+    related_intobj = Promptintent.objects.all().filter(objective__pk=chlng_id)
+    intent_list = [obj.__dict__ for obj in related_intobj]
+    # extract the other details from the objective table
+    curr_obj = get_object_or_404(Objective, pk=chlng_id).__dict__
+    # If code snippet is present for this chlnge, then update the same in code_page.html
+    curr_obj_codes = Codesnippet.objects.all().filter(objective__id=chlng_id)
+
+    if len(curr_obj_codes) > 0:
+        curr_code_list = []
+        for code_obj in curr_obj_codes:
+            curr_code_list.append({
+                "intent": code_obj.intent.id,
+                "code_intent": code_obj.code_intent,
+                "snippet": code_extractor(code_obj.snippet),
+            })
+        int_code_convo = intent_code_assembler(curr_obj_codes)
+    else:
+        curr_code_list = None
+        intent_code_convo = ''
+
+    context = {"intentdtl": intent_list,
+               "currobj": curr_obj,
+               "chlng_id": chlng_id,
+               "curr_code_list": curr_code_list,
+               "int_code_convo": int_code_convo} 
+
+    logging.debug(f"context: {context}")
+    return render(request, 'code_page.html', context)
+
+
+def generate_code(request, itt_id):
+    # get the prompt for code generation
+    gen_code_prompt = env.get_template("code_generator.prompt")
+    int_obj = get_object_or_404(Promptintent, pk=itt_id) 
+    chlng_obj = get_object_or_404(Objective, pk=int_obj.objective_id) 
+    intent_dtl = int_obj.user_intent
+    chlng_dict = chlng_obj.__dict__
+
+    code_prompt = gen_code_prompt.render(
+        language=chlng_dict['language'],
+        apptype=chlng_dict['apptype'],
+        experience=chlng_dict['experience'],
+        intent=intent_dtl,
+    )
+    logging.info(f'Code prompt: {code_prompt}')
+
+    snippet = llm_call_openai(user_message=code_prompt)['response']
+
+    cd_snippet = Codesnippet(
+        objective=chlng_obj,
+        intent=int_obj,
+        code_intent=intent_dtl,
+        snippet=snippet,
+    )
+
+    try:
+        cd_snippet.save()
+    except Exception as e:
+        logging.info(f"There is issue in saving code snippet: {e}")
+        return redirect(reverse('page404'))
+    curr_obj_codes = Codesnippet.objects.all()
+    int_code_convo = intent_code_assembler(curr_obj_codes)
+    context = {
+        "code_prompt": code_prompt,
+        "snippet": code_extractor(snippet),
+        "int_obj": int_obj,
+        "int_code_convo": int_code_convo
+    }
+    return render(request, 'code_page.html', context)
 
 
 def page404(request):

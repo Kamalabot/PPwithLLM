@@ -52,6 +52,7 @@ class Promptintent(models.Model):
 
 class Codesnippet(models.Model):
     objective = models.ForeignKey(Objective, on_delete=models.CASCADE)
+    intent = models.ForeignKey(Promptintent, on_delete=models.CASCADE)
     code_intent = models.TextField(blank=True)
     user_input = models.TextField(blank=True)
     explanation = models.TextField(blank=True)

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}PPwLLM{% endblock %}
+{% block content %}
+    <div class="container">
+        <div>
+            <h3>Getting Code from LLM</h3>
+        </div>
+        <div>
+            <div class="d-flex flex-row flex-wrap mx-2">
+                {% if currobj %}
+                <div class="card">
+                    <div class="card-header">
+                        <p>Your Challenge: <span>{{currobj.challenge}}</span></p>
+                    </div>
+                    <div class="card-body">
+                        <div>
+                            <p>Code Lang: <span>{{currobj.language}}</span></p>
+                        </div>
+                        <div>
+                            <p>App Type: <span>{{currobj.apptype}}</span></p>
+                        </div>
+                        <div>
+                            <p>Coding Exp: <span>{{currobj.experience}}</span></label>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="w-50 mx-2">
+                    <h6>Identified Intents: </h6>
+                    {% if intentdtl %}
+                        {% for dtl in intentdtl %}
+                        <div class="my-1">
+                            <h5>Intent</h5>
+                            <div>
+                                <p>{{dtl.user_intent}}</p>
+                                <a href="{% url 'gen_code' dtl.id %}" class="btn btn-primary">Code Intent</a>
+                                <a href="{% url 'rem_int' dtl.id %}" class="btn btn-danger">Delete Intent</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% elif int_obj %}
+                    <div class="my-1">
+                        <h5>Intent Used</h5>
+                        <div>
+                            <p>{{int_obj.user_intent}}</p>
+                            <a href="{% url 'gen_code' int_obj.id %}" class="btn btn-primary">Code Intent</a>
+                            <a href="{% url 'rem_int' int_obj.id %}" class="btn btn-danger">Delete Intent</a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mx-1 row">
+                        <h5>Find Intent First: </h5>
+                        <a href="{% url 'load_chlng' chlng_id %}" class="mx-1 btn btn-primary">Find Intent</a>
+                    </div>
+                   {% endif %}
+                </div>
+                <div class="w-100 mx-2">
+                    <h6>AI Code: </h6>
+                    {% if curr_code_list %}
+                        <div class="my-1">
+                            <textarea name="codeconv" id="codeconv" cols="80" rows="20">{{int_code_convo}}</textarea>
+                        </div>
+                    {% endif %}
+                    {% if snippet %}
+                        <div class="my-1">
+                            <textarea name="codeconv" id="codeconv" cols="80" rows="20">{{int_code_convo}}</textarea>
+                        </div>
+                        <input type="text" size="80" id="user_msg" placeholder="{{user_feedback}}"><br>
+                        <input type="button" class="btn btn-success my-1" value="send" id="submit">
+                        <a href="{% url 'begin_code' int_obj.objective.id %}" class="btn btn-primary">Back</a>
+                    {% endif %}
+                </div>
+            </div>
+       </div>
+    </div>
+    <script>
+        window.addEventListener("DOMContentLoaded", () =>{
+        const websy = new WebSocket(`ws://${window.location.host}/ws/chat/{{chlng_id}}/`);
+        document.querySelector("#submit").addEventListener("click", () => {
+            console.log("got in") 
+            const intent = document.querySelector("#chat_window").value
+            const user_msg = document.querySelector("#user_msg").value
+            websy.send(JSON.stringify({usr_msg: user_msg,
+                                    intent: intent}))
+        });
+        websy.onmessage = ({ data }) => {
+            const json_data = JSON.parse(data)
+            console.log(json_data)
+            const intent = document.querySelector("#chat_window").value
+            const user_msg = document.querySelector("#user_msg").value
+            document.querySelector("#prompt").value = json_data['input_prompt']
+
+            if (json_data['pred_intent']) {
+            document.querySelector("#chat_window").value += `
+User: ${user_msg}
+AI intent: ${json_data['pred_intent']}
+`
+        } 
+            if (json_data['pred_question']){
+             document.querySelector("#chat_window").value += `
+User: ${user_msg}
+AI Question: ${json_data['pred_question']}
+`
+            }
+        };
+    });
+    </script>
+{% endblock %}
