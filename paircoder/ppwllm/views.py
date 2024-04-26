@@ -21,13 +21,16 @@ import os
 from .models import (
     Objective,
     Promptintent,
-    Codesnippet
+    Codesnippet,
+    Messagestore,
+    Rawcontent
 )
 from .forms import ObjectiveForm
 from typing import List
 from groq import Groq
-import re
+from re import compile
 import json
+from datetime import datetime
 
 
 load_dotenv("D:\\gitFolders\\python_de_learners_data\\.env")
@@ -45,6 +48,14 @@ env = Environment(
     loader=FileSystemLoader(base_view / 'jinja_templates'),
     autoescape=select_autoescape,
 )
+
+
+def format_dtime(date_str):
+    datepart = date_str.split(' ')[0]
+    print(datepart)
+    if len(datepart) == 8:
+        return datetime.strptime(date_str, '%d/%m/%y %H:%M')
+    return datetime.strptime(date_str, '%d/%m/%Y %H:%M')
 
 
 def extract_json(text):
@@ -92,14 +103,23 @@ def llm_call_openai(user_message: str):
 
 
 def llm_groq_parser(user_message: str):
-    user_prompt = f"""Review the message below and extract the data inside
-    into JSON format and return the same. If the data contains multiple json
-    data, then enclose into a list. Message: {user_message}"""
-    data_engineer_prompt = f"""You are a data engineer, proficient in the use of 
+    data_engineer_prompt = """You are a data engineer, proficient in the use of 
     Large Language Models, and are tasked with identification of individual
-    text messages and structuring each individual message in JSON format
-    to create a knowledge graph from any given data.
-    Unstructured Data: {user_message}"""
+    text messages and structuring each individual message in JSON format as 
+    shown below ```json {
+            "rental_details": {
+                "description": "RENTAL ROOM HIGHER FLOOR SEAFACE",
+                "room_type": "1RK",
+                "carpet_area": "225 sq.ft",
+                "allowed": ["BACHELOR", "FAMILY"],
+                "rent_amount": 25000,
+                "deposit_amount": 100000,
+                "negotiable": false,
+                "location": ["JUHU VERSOVA LINK ROAD", "ANDHERI WEST"]
+            },
+            "contact_numbers": ["7977346657", "9324104596"]}```
+    Do not provide explanation of any kind.""" + f"""Unstructured Data: {user_message}"""
+
     try:
         response = groq_client.chat.completions.create(
             model='llama3-70b-8192',
@@ -113,7 +133,8 @@ def llm_groq_parser(user_message: str):
         )
         assistant_message = response.choices[0].message.content
         # parsed_text = extract_json(assistant_message)
-        return assistant_message 
+        return assistant_message
+
     except Exception as e:
         logging.info(e)
         return {"error": "Error occurred while processing request."}
@@ -121,8 +142,8 @@ def llm_groq_parser(user_message: str):
 
 def llm_text_parser(user_message: str):
     system_prompt = """You are an expert at parsing text of any type
-    including variety of messages in whatsapp and other social media. You 
-    extract the data present in the messages into a repeatable schema and 
+    including variety of messages in whatsapp and other social media. You
+    extract the data present in the messages into a repeatable schema and
     generate json format data."""
     user_prompt = f"""Review the message below and extract the data inside
     into JSON format and return the same. If the data contains multiple json
@@ -140,8 +161,7 @@ def llm_text_parser(user_message: str):
             presence_penalty=0.1
         )
         assistant_message = response.choices[0].message.content
-        parsed_text = extract_json(assistant_message)
-        return parsed_text
+        return assistant_message 
 
     except Exception as e:
         logging.info(e)
@@ -149,27 +169,121 @@ def llm_text_parser(user_message: str):
 
 
 def post_message(request):
-    return render(request, 'parse_message.html', {'message':'none'})
+    try:
+        raw_objs = Rawcontent.objects.all()
+        raw_messages = []
+        for raw in raw_objs:
+            raw_messages.append(
+                {
+                    "content": raw.content,
+                    "id": raw.pk
+                }
+            )
+        return render(request, 'parse_message.html',
+                      {'raw_objs': raw_messages})
+    except Exception as e:
+        logging.info(e)
+        return redirect(reverse('page404'))
+
+
+def msg_to_db(message, source):
+    parts_regex = compile(r"(\d{2}\/\d{2}\/\d{4}),\s(\d{2}:\d{2})\s-\s(\+\d{2}\s\d{5}\s\d{5}):")  # extracting the date and time
+    data_locs = parts_regex.finditer(message)
+    # data_len = len(data_locs)
+    split_regex = compile(r"\d{2}\/\d{2}\/\d{4},\s\d{2}:\d{2}\s-\s\+\d{2}\s\d{5}\s\d{5}:")  # extracting the date and time 
+    message_content = split_regex.split(message)[1:]
+    msg_len = len(message_content)
+    if msg_len == 0:
+        logging.info(f"Message_len: {msg_len}, so trying another regex")
+        comp_en = compile(r"(\d{2}\/\d{2}\/\d{2}),\s(\d{2}:\d{2})\s.{2}\s-\s([a-zA-Z0-9_]*):")  # extracting the date and time
+        data_locs = comp_en.finditer(message)
+
+        comp_sp = compile(r"\d{2}\/\d{2}\/\d{2},\s\d{2}:\d{2}\s.{2}\s-\s[a-zA-Z0-9_]*:")  # extracting the date and time
+        message_content = comp_sp.split(message)[1:]
+        logging.info(f"Message: {message_content}")
+    try:
+        for ind, mat in enumerate(data_locs):
+            date_form = format_dtime(f"{mat.group(1)} {mat.group(2)}")
+            logging.info(date_form)
+            msg = Messagestore(
+                sourcemsg=source,
+                msgdate=date_form,
+                phonenumber=mat.group(3),
+                rawcontent=message_content[ind],
+            )
+            msg.save()
+        return {"write": "suceeded"}
+    except Exception as e:
+        logging.info(e)
+        return {"write": "failed"}
+
+
+def show_messages(request, msg_id):
+    sourcemsg = get_object_or_404(Rawcontent,
+                                  pk=msg_id)
+    msgobjs = get_list_or_404(Messagestore,
+                              sourcemsg=sourcemsg)
+    obj_data = []
+    for msg in msgobjs:
+        obj_data.append({
+            "msgdate": msg.msgdate,
+            "phonenumber": msg.phonenumber,
+            "rawcontent": msg.rawcontent,
+            "openaiparsed": msg.openaiparsed,
+            "groqparsed": msg.groqparsed,
+            "id": msg.pk,
+        })
+    context = {"obj_data": obj_data}
+    return render(request, 'show_messages.html', context)
 
 
 @csrf_exempt
-def parse_message(request):
+def store_message(request):
     if request.POST:
         dictionary = request.POST.dict()
         logging.debug(dictionary)
-        message = str(dictionary['message'])
-        parsed_openai = llm_text_parser(message)
-        logging.info(f"openai: {parsed_openai}")
-        parsed_llama3 = llm_groq_parser(message)
-        logging.info(f"llama3: {parsed_llama3}")
-        context = {
-            "llama3_reply": parsed_llama3,
-            "openai_reply": parsed_openai,
-            "message": message
-        }
-        return render(request, 'parse_message.html', context)
+        message = dictionary['message']
+
+        try:
+            raw = Rawcontent(content=message)
+            raw.save()
+        except Exception as e:
+            logging.info(f"Storing failed {e}")
+            return redirect(reverse('page404'))
+
+        write_db = msg_to_db(message, raw)
+        write_db['message'] = message
+        write_db['msg_id'] = raw.pk
+        logging.info(write_db)
+        return render(request, 'parse_message.html', write_db)
     else:
         return render(reverse('page404'))
+
+
+def delete_message(request, msg_id):
+    del_rawmsg = get_object_or_404(Rawcontent, pk=msg_id)
+    try:
+        del_rawmsg.delete()
+        return redirect(reverse('post_msg'))
+    except Exception as e:
+        logging.info(e)
+        return redirect(reverse('page404'))
+
+
+def save_json(request, raw):
+    raw_msg = get_object_or_404(Messagestore, pk=raw)
+    json_openai = llm_text_parser(raw_msg.rawcontent)
+    json_groq = llm_groq_parser(raw_msg.rawcontent)
+    raw_msg.groqparsed = json_groq
+    raw_msg.openaiparsed = json_openai
+    try:
+        raw_msg.save()
+        return render(request, 'show_messages.html',
+                      {"raw_msg": raw_msg,
+                       "source": raw_msg.sourcemsg.pk})
+    except Exception as e:
+        logging.info(f'Issue in saving parsed msg. {e}')
+        return redirect(reverse('page404'))
 
 
 def challenge_index(request):
@@ -245,6 +359,7 @@ def delete_snippet(request, sn_id):
     except Exception as e:
         logging.info(e)
         return redirect(reverse('page404'))
+
 
 def dbobj_to_prompt(db_obj, jinja_env):
     prompt = jinja_env.get_template(intent_clarifier)
@@ -366,6 +481,7 @@ def intent_code_assembler(codesnips: Codesnippet):
         assembler += f"\n\n****** Conv {ind + 1} End********\n\n"
 
     return assembler 
+
 
 def intent(request, chlng_id):
     prompt = env.get_template(intent_clarifier)

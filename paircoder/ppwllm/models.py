@@ -1,4 +1,5 @@
 from django.db import models
+from datetime import datetime
 
 
 lang_choices = [
@@ -59,3 +60,16 @@ class Codesnippet(models.Model):
     snippet = models.TextField(blank=True)
     input_type = models.CharField(max_length=25, choices=queries,
                                   blank=True)
+
+
+class Rawcontent(models.Model):
+    content = models.TextField(blank=True, default=None, unique=True)
+
+
+class Messagestore(models.Model):
+    sourcemsg = models.ForeignKey(Rawcontent, on_delete=models.CASCADE)
+    msgdate = models.DateTimeField(default=datetime.now())
+    phonenumber = models.CharField(max_length=15)
+    rawcontent = models.TextField(default=None, blank=True, null=True)
+    openaiparsed = models.TextField(default=None, blank=True, null=True)
+    groqparsed = models.TextField(default=None, blank=True, null=True)
