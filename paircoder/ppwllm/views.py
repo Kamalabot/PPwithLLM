@@ -28,7 +28,11 @@ from .models import (
 from .forms import ObjectiveForm
 from typing import List
 from groq import Groq
-from re import compile
+from re import (
+    compile,
+    search,
+    DOTALL,
+)
 import json
 from datetime import datetime
 
@@ -417,7 +421,7 @@ def load_challenge(request, chlng_id):
                "intents": int_data,
                "assembled_dialogue": assembled_dialogue,
                "final_prompt": final_prompt}
-   
+ 
     return render(request, 'intent_page.html', context)
 
 
@@ -448,17 +452,17 @@ def code_extractor(llm_prediction: str):
     pattern1 = r"can_do:\s*(.*?)\s*Language:"
     pattern2 = r"Language:\s*(.*?)\s*```" 
     pattern3 = r"```(.*?)```"
-    match1 = re.search(pattern1, llm_prediction)
+    match1 = search(pattern1, llm_prediction)
     if match1:
         can_do = match1.group(1).strip()
     else:
         can_do = 'Not found'
-    match2 = re.search(pattern2, llm_prediction)
+    match2 = search(pattern2, llm_prediction)
     if match2:
         language = match2.group(1).strip()
     else:
         language = 'Not Found'
-    match3 = re.search(pattern3, llm_prediction, re.DOTALL)
+    match3 = search(pattern3, llm_prediction, DOTALL)
     if match3:
         snip = match3.group(1).strip()
     else:
@@ -539,7 +543,7 @@ def begin_coding(request, chlng_id):
         int_code_convo = intent_code_assembler(curr_obj_codes)
     else:
         curr_code_list = None
-        intent_code_convo = ''
+        int_code_convo = ''
 
     context = {"intentdtl": intent_list,
                "currobj": curr_obj,
@@ -554,8 +558,8 @@ def begin_coding(request, chlng_id):
 def generate_code(request, itt_id):
     # get the prompt for code generation
     gen_code_prompt = env.get_template("code_generator.prompt")
-    int_obj = get_object_or_404(Promptintent, pk=itt_id) 
-    chlng_obj = get_object_or_404(Objective, pk=int_obj.objective_id) 
+    int_obj = get_object_or_404(Promptintent, pk=itt_id)
+    chlng_obj = get_object_or_404(Objective, pk=int_obj.objective_id)
     intent_dtl = int_obj.user_intent
     chlng_dict = chlng_obj.__dict__
 
@@ -584,10 +588,42 @@ def generate_code(request, itt_id):
     curr_obj_codes = Codesnippet.objects.all()
     int_code_convo = intent_code_assembler(curr_obj_codes)
     context = {
+        "chlng_id": chlng_obj.id,
         "code_prompt": code_prompt,
         "snippet": code_extractor(snippet),
         "int_obj": int_obj,
         "int_code_convo": int_code_convo
+    }
+    return render(request, 'code_page.html', context)
+
+
+def start_codechat(request, itt_id):
+    # get the prompt for code generation
+    int_obj = get_object_or_404(Promptintent, pk=itt_id)
+    chlng_obj = get_object_or_404(Objective, pk=int_obj.objective_id)
+    chlng_dict = chlng_obj.__dict__
+
+    curr_obj_codes = Codesnippet.objects.all()
+
+    if len(curr_obj_codes) > 0:
+        curr_code_list = []
+        for code_obj in curr_obj_codes:
+            curr_code_list.append({
+                "intent": code_obj.intent.id,
+                "code_intent": code_obj.code_intent,
+                "snippet": code_extractor(code_obj.snippet),
+            })
+        int_code_convo = intent_code_assembler(curr_obj_codes)
+    else:
+        curr_code_list = None
+        int_code_convo = ''
+
+    int_code_convo = intent_code_assembler(curr_obj_codes)
+    context = {
+        "chlng_id": chlng_obj.id,
+        "int_obj": int_obj,
+        "int_code_convo": int_code_convo,
+        "curr_code_list": curr_code_list,
     }
     return render(request, 'code_page.html', context)
 
