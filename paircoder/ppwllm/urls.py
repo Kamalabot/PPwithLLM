@@ -17,7 +17,6 @@ from .views import (
     delete_message,
     begin_coding,
     generate_code,
-    start_codechat,
 )
 
 urlpatterns = [
@@ -36,7 +35,6 @@ urlpatterns = [
     path('remove_msg<int:msg_id>', delete_message, name='remove_msg'),
     path('show_msg/<int:msg_id>', show_messages, name='show_msg'),
     path('begin_code/<int:chlng_id>', begin_coding, name='begin_code'),
-    path('code_chat/<int:itt_id>', start_codechat, name='code_chat'),
     path('gen_code/<int:itt_id>', generate_code, name='gen_code'),
     path('del_code/<int:sn_id>', delete_snippet, name='del_code'),
 ]

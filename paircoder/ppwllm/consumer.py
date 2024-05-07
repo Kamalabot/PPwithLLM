@@ -69,7 +69,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             processed_pred['input_prompt'] = prompt_text
             await self.send(text_data=json.dumps(processed_pred))
 
-        # the following seems to be broadcasting the message to all
+        # the following seems to be broadcasting the message to all and 
+        # goes through chat_message method
         # await self.channel_layer.group_send(
             # self.room_group_name, {"type": "chat_message", "message": message}
         # )

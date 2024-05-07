@@ -33,8 +33,8 @@ from re import (
     search,
     DOTALL,
 )
-import json
 from datetime import datetime
+from django.db.models.query import QuerySet
 
 
 load_dotenv("D:\\gitFolders\\python_de_learners_data\\.env")
@@ -475,16 +475,23 @@ def code_extractor(llm_prediction: str):
     return final_dict
 
 
-def intent_code_assembler(codesnips: Codesnippet):
+def intent_code_assembler(codesnips):
     assembler = ""
-    logging.info(len(codesnips))
-    for ind, code in enumerate(codesnips):
-        assembler += f"Intent: {code.intent.user_intent}"
+    if isinstance(codesnips, QuerySet):
+        logging.info(len(codesnips))
+        for ind, code in enumerate(codesnips):
+            assembler += f"Intent: {code.intent.user_intent}"
+            assembler += "\n\n"
+            assembler += f"Snippet: {code_extractor(code.snippet)['snip']}"
+            assembler += f"\n\n****** Conv {ind + 1} End********\n\n"
+    else:
+        logging.info('Working on new snippet')
+        assembler += f"Intent: {codesnips.intent.user_intent}"
         assembler += "\n\n"
-        assembler += f"Snippet: {code_extractor(code.snippet)['snip']}"
-        assembler += f"\n\n****** Conv {ind + 1} End********\n\n"
+        assembler += f"Snippet: {code_extractor(codesnips.snippet)['snip']}"
+        assembler += f"\n\n****** Conv 1 End********\n\n"
 
-    return assembler 
+    return assembler
 
 
 def intent(request, chlng_id):
@@ -529,54 +536,30 @@ def begin_coding(request, chlng_id):
     intent_list = [obj.__dict__ for obj in related_intobj]
     # extract the other details from the objective table
     curr_obj = get_object_or_404(Objective, pk=chlng_id).__dict__
-    # If code snippet is present for this chlnge, then update the same in code_page.html
-    curr_obj_codes = Codesnippet.objects.all().filter(objective__id=chlng_id)
-
-    if len(curr_obj_codes) > 0:
-        curr_code_list = []
-        for code_obj in curr_obj_codes:
-            curr_code_list.append({
-                "intent": code_obj.intent.id,
-                "code_intent": code_obj.code_intent,
-                "snippet": code_extractor(code_obj.snippet),
-            })
-        int_code_convo = intent_code_assembler(curr_obj_codes)
-    else:
-        curr_code_list = None
-        int_code_convo = ''
-
     context = {"intentdtl": intent_list,
                "currobj": curr_obj,
                "chlng_id": chlng_id,
-               "curr_code_list": curr_code_list,
-               "int_code_convo": int_code_convo} 
+               }
 
     logging.debug(f"context: {context}")
     return render(request, 'code_page.html', context)
 
 
-def generate_code(request, itt_id):
-    # get the prompt for code generation
+def intent2code(challenge_obj, intent_obj):
+    challenge_dict = challenge_obj.__dict__
     gen_code_prompt = env.get_template("code_generator.prompt")
-    int_obj = get_object_or_404(Promptintent, pk=itt_id)
-    chlng_obj = get_object_or_404(Objective, pk=int_obj.objective_id)
-    intent_dtl = int_obj.user_intent
-    chlng_dict = chlng_obj.__dict__
-
     code_prompt = gen_code_prompt.render(
-        language=chlng_dict['language'],
-        apptype=chlng_dict['apptype'],
-        experience=chlng_dict['experience'],
-        intent=intent_dtl,
-    )
-    logging.info(f'Code prompt: {code_prompt}')
-
+        language=challenge_dict['language'],
+        apptype=challenge_dict['apptype'],
+        experience=challenge_dict['experience'],
+        intent=intent_obj.user_intent
+        )
     snippet = llm_call_openai(user_message=code_prompt)['response']
 
     cd_snippet = Codesnippet(
-        objective=chlng_obj,
-        intent=int_obj,
-        code_intent=intent_dtl,
+        objective=challenge_obj,
+        intent=intent_obj,
+        code_intent=intent_obj.user_intent,
         snippet=snippet,
     )
 
@@ -584,20 +567,38 @@ def generate_code(request, itt_id):
         cd_snippet.save()
     except Exception as e:
         logging.info(f"There is issue in saving code snippet: {e}")
-        return redirect(reverse('page404'))
-    curr_obj_codes = Codesnippet.objects.all()
-    int_code_convo = intent_code_assembler(curr_obj_codes)
-    context = {
-        "chlng_id": chlng_obj.id,
+    return {
+        "chlng_id": challenge_obj.id,
         "code_prompt": code_prompt,
         "snippet": code_extractor(snippet),
-        "int_obj": int_obj,
-        "int_code_convo": int_code_convo
+        "intent_obj": intent_obj,
+        "int_code_convo": intent_code_assembler(cd_snippet)
     }
+
+
+def generate_code(request, itt_id):
+    # get the prompt for code generation
+    int_obj = get_object_or_404(Promptintent, pk=itt_id)
+    chlng_obj = get_object_or_404(Objective, pk=int_obj.objective_id)
+    curr_obj_codes = Codesnippet.objects.all().filter(intent=int_obj)
+    if len(curr_obj_codes) > 0:
+        logging.info("Using existing code snippets")
+        int_code_convo = intent_code_assembler(curr_obj_codes)
+        context = {
+            "chlng_id": chlng_obj.id,
+            "code_prompt": 'Not Avbl',
+            "snippet": 'Not Generated',
+            "intent_obj": int_obj,
+            "int_code_convo": int_code_convo
+        }
+
+    else:
+        logging.info("Generating new snippets")
+        context = intent2code(chlng_obj, int_obj)
     return render(request, 'code_page.html', context)
 
 
-def start_codechat(request, itt_id):
+def start_codechat(itt_id):
     # get the prompt for code generation
     int_obj = get_object_or_404(Promptintent, pk=itt_id)
     chlng_obj = get_object_or_404(Objective, pk=int_obj.objective_id)
@@ -615,7 +616,7 @@ def start_codechat(request, itt_id):
             })
         int_code_convo = intent_code_assembler(curr_obj_codes)
     else:
-        curr_code_list = None
+        curr_code_list = 'empty'
         int_code_convo = ''
 
     int_code_convo = intent_code_assembler(curr_obj_codes)
@@ -625,7 +626,7 @@ def start_codechat(request, itt_id):
         "int_code_convo": int_code_convo,
         "curr_code_list": curr_code_list,
     }
-    return render(request, 'code_page.html', context)
+    return context
 
 
 def page404(request):

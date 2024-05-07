@@ -27,37 +27,29 @@
                 </div>
                 {% endif %}
                 <div class="w-50 mx-2">
-                    <h6>Identified Intents: </h6>
                     {% if intentdtl %}
+                    <h6>Identified Intents: </h6>
                         {% for dtl in intentdtl %}
                         <div class="my-1">
                             <h5>Intent</h5>
                             <div>
                                 <p>{{dtl.user_intent}}</p>
-                                <a href="{% url 'code_chat' dtl.id %}" class="btn btn-primary">Code Intent</a>
+                                <a href="{% url 'gen_code' dtl.id %}" class="btn btn-primary">Code Intent</a>
                                 <a href="{% url 'rem_int' dtl.id %}" class="btn btn-danger">Delete Intent</a>
                             </div>
                         </div>
                         {% endfor %}
-                    {% elif int_obj %}
-                    <div class="my-1">
-                        <h5>Intent Used</h5>
-                        <div>
-                            <p>{{int_obj.user_intent}}</p>
-                            <a href="{% url 'code_chat' int_obj.id %}" class="btn btn-primary">Code Intent</a>
-                            <a href="{% url 'rem_int' int_obj.id %}" class="btn btn-danger">Delete Intent</a>
-                        </div>
-                    </div>
-                    {% else %}
+                    {% endif %}
+                    {% if int_obj %}
                     <div class="mx-1 row">
-                        <h5>Find Intent First: </h5>
-                        <a href="{% url 'load_chlng' chlng_id %}" class="mx-1 btn btn-primary">Find Intent</a>
+                        <h5>Intent is: {{int_obj.user_intent}</h5>
+                        <a href="{% url 'load_chlng' chlng_id %}" class="mx-1 btn btn-primary">Back</a>
                     </div>
                    {% endif %}
                 </div>
                 <div class="w-100 mx-2">
-                    <h6>AI Code: </h6>
                     {% if curr_code_list %}
+                    <h6>AI Code: </h6>
                         <div class="my-1">
                             <textarea name="codeconv" id="codeconv" cols="80" rows="20">{{int_code_convo}}</textarea>
                         </div>
@@ -71,7 +63,7 @@
                         </div>
                         <input type="text" size="80" id="user_msg" placeholder="{{user_feedback}}"><br>
                         <input type="button" class="btn btn-success my-1" value="send" id="submit">
-                        <a href="{% url 'begin_code' int_obj.objective.id %}" class="btn btn-primary">Back</a>
+                        <a href="{% url 'begin_code' chlng_id %}" class="btn btn-primary">Back</a>
                     {% endif %}
                 </div>
             </div>
@@ -79,13 +71,15 @@
     </div>
     <script>
         window.addEventListener("DOMContentLoaded", () =>{
-        const websy = new WebSocket(`ws://${window.location.host}/ws/code/{{chlng_id}}/`);
+        const websy = new WebSocket(`ws://${window.location.host}/ws/code/{{intent_obj.pk}}/`);
         document.querySelector("#submit").addEventListener("click", () => {
             console.log("got in") 
             const codeconv = document.querySelector("#codeconv").value
             const user_msg = document.querySelector("#user_msg").value
-            const packet = {usr_msg: user_msg,
-                            codeconv: codeconv}
+            const itt_id = `{{intent_obj.pk}}`
+            const packet = {user_msg: user_msg,
+                            codeconv: codeconv,
+                            itt_id: itt_id}
             console.log(packet)
             websy.send(JSON.stringify(packet))
 

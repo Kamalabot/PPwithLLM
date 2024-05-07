@@ -8,7 +8,8 @@ from .views import (
     llm_call_openai,
     env,
     code_extractor,
-    intent_code_assembler
+    intent_code_assembler,
+    start_codechat
 )
 import logging
 
@@ -23,8 +24,8 @@ class CodeConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(
             self.room_group_name, self.channel_name
         )
-        logging.info(self.room_group_name)
-        logging.info(self.channel_name)
+        # logging.info(self.room_group_name)
+        # logging.info(self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
@@ -32,10 +33,18 @@ class CodeConsumer(AsyncWebsocketConsumer):
             self.room_group_name, self.channel_name
         )
 
-    async def recieve(self, text_data):
+    async def receive(self, text_data):
         logging.info("recieving")
+        logging.info(text_data)
         code_dict = json.loads(text_data)
-        logging.info(code_dict)
+        itt_id = code_dict['itt_id']
+        user_msg = code_dict['user_msg']
+        codeconv = code_dict['codeconv']
+        codesnips = await self.get_codesnippets(itt_id)
+        # recieved user message is parsed for the intent
+        # based on the intent code is altered 
+        # altered code is updated in db
+        # and sent to the frontend
         json_str = json.dumps({"reply": "ack"})
         await self.send(text_data=json_str)
 
@@ -43,3 +52,8 @@ class CodeConsumer(AsyncWebsocketConsumer):
         message = event['message']
         logging.info(message)
         await self.send(json.dumps({"message": message}))
+
+    @database_sync_to_async
+    def get_codesnippets(self, itt_id):
+        snip_queryset = Codesnippet.objects.all().filter(intent__pk=itt_id)
+        logging.info(snip_queryset)
