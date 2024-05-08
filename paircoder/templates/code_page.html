@@ -69,6 +69,7 @@
             </div>
        </div>
     </div>
+    {% if intent_obj.pk %}
     <script>
         window.addEventListener("DOMContentLoaded", () =>{
         const websy = new WebSocket(`ws://${window.location.host}/ws/code/{{intent_obj.pk}}/`);
@@ -87,23 +88,14 @@
         websy.onmessage = ({ data }) => {
             const json_data = JSON.parse(data)
             console.log(json_data)
-            const intent = document.querySelector("#codeconv").value
-            const user_msg = document.querySelector("#user_msg").value
-            document.querySelector("#prompt").value = json_data['input_prompt']
-
-            if (json_data['pred_intent']) {
+            if ('updated_code' in json_data) {
             document.querySelector("#codeconv").value += `
-User: ${user_msg}
-AI intent: ${json_data['pred_intent']}
+User: ${json_data['user_msg']}
+AI Gen Code: ${json_data['updated_code']}
 `
-        } 
-            if (json_data['pred_question']){
-             document.querySelector("#codeconv").value += `
-User: ${user_msg}
-AI Question: ${json_data['pred_question']}
-`
-            }
+            }  
         };
     });
     </script>
+    {% endif %}
 {% endblock %}

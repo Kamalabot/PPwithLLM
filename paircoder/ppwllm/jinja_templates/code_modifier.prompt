@@ -6,6 +6,6 @@ Kindly review the below user_feedback
 user_feedback: {{ user_feedback }}
 Review the following code .
 code_snippet: {{ code }}  
-Provide the explanation of the code in simple english. Start the 
-explanation with "explained:" token
+modify the code snippet based on the user_feedback. Start the 
+modified code with "updated:" token
 
